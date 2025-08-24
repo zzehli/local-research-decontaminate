@@ -3,9 +3,9 @@
 Based on: https://github.com/vishalbakshi/decontamination-demo/tree/main and https://github.com/allenai/open-instruct/tree/main/decontamination
 
 # Setup
-install elastic:
+start elastic with docker
 ```
-curl -fsSL https://elastic.co/start-local | sh -s -- --esonly
+elastic-start-local/start.sh
 ```
 
 install python dependency:
