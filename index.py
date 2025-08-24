@@ -201,15 +201,16 @@ def main():
             query_filter=args.query_filter,
             query_field=args.query_field
         )
-        index_name = dataset_name.replace("/", "_").lower() + f"_{args.index_type}"
-        if args.index_type == "text":
-            if not es.indices.exists(index=index_name):
-                create_text_index(es, index_name=index_name)
-            index_dataset_text(data_to_index=data_to_index, es=es, index_name=index_name, text_batch_size=args.text_batch_size)
-        else:
-            if not es.indices.exists(index=index_name):
-                create_vector_index(es, index_name=index_name)
-            index_dataset_vectors(data_to_index=data_to_index, es=es, index_name=index_name, model_name=args.model, max_batch_tokens=args.max_batch_tokens)
+        print(len(data_to_index))
+        # index_name = dataset_name.replace("/", "_").lower() + f"_{args.index_type}"
+        # if args.index_type == "text":
+        #     if not es.indices.exists(index=index_name):
+        #         create_text_index(es, index_name=index_name)
+        #     index_dataset_text(data_to_index=data_to_index, es=es, index_name=index_name, text_batch_size=args.text_batch_size)
+        # else:
+        #     if not es.indices.exists(index=index_name):
+        #         create_vector_index(es, index_name=index_name)
+        #     index_dataset_vectors(data_to_index=data_to_index, es=es, index_name=index_name, model_name=args.model, max_batch_tokens=args.max_batch_tokens)
 
 
 if __name__ == "__main__":
