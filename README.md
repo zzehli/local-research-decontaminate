@@ -51,4 +51,4 @@ Uploading the dataset shards: 100%|███████████████
         Removed 5 train instances.
         Kept 99.44% of the original data.
 ```
-the decontaminated indices are the same as the `target_indices` in our `contamination_script.py`
+the decontaminated indices are the same as the `target_indices` in our `contamination_script.py`, which means the this search successfully found all contaminated rows.
