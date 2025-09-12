@@ -3,9 +3,11 @@ import os
 
 import yaml
 from datasets import load_dataset
+from dotenv import load_dotenv
 from elasticsearch import Elasticsearch, helpers
 from tqdm import tqdm
 
+load_dotenv()
 
 def create_text_index(es, index_name):
     mappings = {
@@ -44,25 +46,40 @@ def create_vector_index(es, index_name):
     print(f"Created a new vector index: {index_name}")
 
 
-def read_dataset(dataset_name, split, messages_field, query_filter, query_field):
-    dataset = load_dataset(dataset_name, split=split)
+def read_dataset(dataset_name, split, messages_field, query_filter, query_field, is_messages = False, subset = None):
+    if subset is not None:
+        print(f"Reading {dataset_name} subset {subset} split {split}")
+        dataset = load_dataset(dataset_name, name=subset, split=split)
+    else:
+        dataset = load_dataset(dataset_name, split=split)
     data_to_index = []
 
     query_filter_key, query_filter_value = query_filter.split(":")
 
     print(f"Reading {messages_field} from {dataset_name}")
+    if is_messages:
+        for i, datum in tqdm(enumerate(dataset)):
+            for message in datum[messages_field]:
+                if message[query_filter_key] == query_filter_value:
+                    data_to_index.append(
+                        {
+                            "text": message[query_field],
+                            "metadata": datum,
+                            "original_id": i,
+                        }
+                    )
 
-    for i, datum in tqdm(enumerate(dataset)):
-        for message in datum[messages_field]:
-            if message[query_filter_key] == query_filter_value:
-                data_to_index.append(
-                    {
-                        "text": message[query_field],
-                        "metadata": datum,
-                        "original_id": i,
-                    }
-                )
-
+    else:
+        for i, datum in tqdm(enumerate(dataset)):
+            messages = datum[messages_field]
+            data_to_index.append(
+                {
+                    "text": messages,
+                    "metadata": datum,
+                    "original_id": i,
+                }
+            )
+        
     print(f"Read {dataset_name} for indexing. Has {len(dataset)} instances and {len(data_to_index)} messages.")
     return data_to_index
 
@@ -167,6 +184,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--es_url", type=str, default="http://localhost:9200")
     parser.add_argument("--dataset", type=str)
+    parser.add_argument("--subset", type=str)
+    parser.add_argument("--is_messages", type=bool, default=False)
     parser.add_argument("--dataset_mixer_config", type=str, help="Path to a train config file in yml format with a `dataset_mixer` field.")
     parser.add_argument("--split", type=str, default="train")
     parser.add_argument("--messages_field", type=str, default="messages")
@@ -199,18 +218,20 @@ def main():
             split=args.split,
             messages_field=args.messages_field,
             query_filter=args.query_filter,
-            query_field=args.query_field
+            query_field=args.query_field,
+            is_messages=args.is_messages,
+            subset=args.subset
         )
         print(len(data_to_index))
-        # index_name = dataset_name.replace("/", "_").lower() + f"_{args.index_type}"
-        # if args.index_type == "text":
-        #     if not es.indices.exists(index=index_name):
-        #         create_text_index(es, index_name=index_name)
-        #     index_dataset_text(data_to_index=data_to_index, es=es, index_name=index_name, text_batch_size=args.text_batch_size)
-        # else:
-        #     if not es.indices.exists(index=index_name):
-        #         create_vector_index(es, index_name=index_name)
-        #     index_dataset_vectors(data_to_index=data_to_index, es=es, index_name=index_name, model_name=args.model, max_batch_tokens=args.max_batch_tokens)
+        index_name = dataset_name.replace("/", "_").lower() + f"_{args.index_type}"
+        if args.index_type == "text":
+            if not es.indices.exists(index=index_name):
+                create_text_index(es, index_name=index_name)
+            index_dataset_text(data_to_index=data_to_index, es=es, index_name=index_name, text_batch_size=args.text_batch_size)
+        else:
+            if not es.indices.exists(index=index_name):
+                create_vector_index(es, index_name=index_name)
+            index_dataset_vectors(data_to_index=data_to_index, es=es, index_name=index_name, model_name=args.model, max_batch_tokens=args.max_batch_tokens)
 
 
 if __name__ == "__main__":

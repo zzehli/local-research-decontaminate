@@ -7,9 +7,12 @@ import spacy
 import torch
 import yaml
 from datasets import Dataset, load_dataset
+from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 from tqdm import tqdm
 from transformers import AutoModel, AutoTokenizer
+
+load_dotenv()
 
 SPACY_MODEL = spacy.load("en_core_web_lg")
 
@@ -315,6 +318,7 @@ def main():
 
             mean_match_score = sum(match_scores) / len(match_scores)
             print(f"\tNumber of matching train instances: {len(contaminated_ids)}")
+            print(f"\tContaminated ids: {contaminated_ids}")
             print(f"\tMean match score: {mean_match_score}")
             mean_match_scores[dataset] = mean_match_score
             output_filename = os.path.join(args.output_dir, f"{index_name}_{dataset.split('/')[-1]}.jsonl")
@@ -328,8 +332,9 @@ def main():
     print(f"TSV file with all results: {output_file}")
     with open(output_file, "w") as outfile:
         print("\t" + "\t".join(ev[0] for ev in eval_sets), file=outfile)
-        for index_name, mean_match_scores in zip(index_names, all_index_match_scores):
+        for index_name, mean_match_scores, contaminated_ids in zip(index_names, all_index_match_scores, all_index_contaminated_ids):
             print(index_name + "\t" + "\t".join([f"{mean_match_scores[ev[0]]:.4f}" for ev in eval_sets]), file=outfile)
+            print(f"\tContaminated ids: {contaminated_ids}", file=outfile)
 
     if args.decontaminate:
         # Output training sets without the instances that match any of the test instances.
@@ -347,9 +352,9 @@ def main():
                 num_kept += 1
                 decontaminated_dataset.append(datum)
             output_path = os.path.join(args.output_dir, dataset_name.replace("/", "_") + "_decontaminated")
-            parquet_file_name = os.path.join(output_path, "train.parquet")
+            # parquet_file_name = os.path.join(output_path, "train.parquet")
             hf_dataset = Dataset.from_list(decontaminated_dataset)
-            hf_dataset.to_parquet(parquet_file_name)
+            hf_dataset.push_to_hub(dataset_name + "_decontaminated")
             print(f"\tWrote parquet files to {output_path}")
             print(f"\tRemoved {num_total - num_kept} train instances.")
             print(f"\tKept {100 * num_kept / num_total:.2f}% of the original data.")

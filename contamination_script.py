@@ -15,7 +15,7 @@ def contaminate_train_with_sample(train_dataset_name, sample_csv_path, train_col
     Returns the affected rows and columns in modified_train
     """
     # Load the train dataset
-    train = load_dataset(train_dataset_name, "10k")
+    train = load_dataset(train_dataset_name, "1k")
     if isinstance(train, dict) or hasattr(train, "keys"):
         train_split = train["train"]
     else:
@@ -54,7 +54,7 @@ def contaminate_train_with_sample(train_dataset_name, sample_csv_path, train_col
     dataset_name = train_dataset_name.split('/')[-1]  # Extract name from path like "LocalResearchGroup/split-glaive-code-assistant-v3"
     out_path = f"data/{dataset_name}-contaminated"
     modified_train.save_to_disk(out_path)
-    
+    print(f"Saved contaminated train to {out_path}")
     # Return the affected rows and columns
     affected_data = []
     for idx in target_indices:
@@ -70,14 +70,14 @@ def contaminate_train_with_sample(train_dataset_name, sample_csv_path, train_col
 
 if __name__ == "__main__":
     # Example usage; change these as needed
-    # train_col = "question"
-    # sample_col = "prompt"
-    # train_dataset_name = "LocalResearchGroup/split-glaive-code-assistant-v3"
-    # sample_csv_path = "data/sample-test-cases-openai-openai_humaneval.csv"
-    train_col = "problem"
-    train_dataset_name = "LocalResearchGroup/split-NuminaMath-CoT"
-    sample_col = "question"
-    sample_csv_path = "data/gsm8k-train-subset-sample.csv"
+    train_col = "question"
+    sample_col = "prompt"
+    train_dataset_name = "LocalResearchGroup/split-glaive-code-assistant-v3"
+    sample_csv_path = "data/sample-test-cases-openai-openai_humaneval.csv"
+    # train_col = "problem"
+    # train_dataset_name = "LocalResearchGroup/split-NuminaMath-CoT"
+    # sample_col = "question"
+    # sample_csv_path = "data/gsm8k-train-subset-sample.csv"
     k = 5
 
     affected_data = contaminate_train_with_sample(
