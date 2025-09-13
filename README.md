@@ -4,6 +4,10 @@ Based on: https://github.com/vishalbakshi/decontamination-demo/tree/main and htt
 
 
 # Setup
+The elastic search folder is setup by going through elastic's [quickstart](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/local-development-installation-quickstart) documentation. Refers to the doc for detailed explanation. In gist, run
+```
+curl -fsSL https://elastic.co/start-local | sh -s -- --esonly
+```
 
 start elastic with docker
 ```
