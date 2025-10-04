@@ -308,6 +308,49 @@ def main():
                     if args.match_threshold is not None:
                         match_scores = [1 if score > args.match_threshold else 0 for score in match_scores]
                         contaminated_ids.update([_id for _id, score in train_indices_with_scores.items() if score > args.match_threshold])
+                        # For each contaminated training original_id, capture one query instance exceeding threshold.
+                        contaminated_examples = {}
+                        for datum in output_data:
+                            matches = datum.get("matches")
+                            if not matches:
+                                continue
+                            for m in matches:
+                                source = m.get("source", {})
+                                train_original_id = source.get("original_id")
+                                score = m.get("score", 0.0)
+                                if train_original_id is None:
+                                    continue
+                                if score > args.match_threshold and train_original_id not in contaminated_examples:
+                                    contaminated_examples[train_original_id] = {
+                                        "query": datum.get("query"),
+                                        "score": score,
+                                        "train_doc_id": m.get("doc_id"),
+                                        "train_text": source.get("text"),
+                                    }
+                        if contaminated_examples:
+                            examples_filename = os.path.join(
+                                args.output_dir,
+                                f"{index_name}_{dataset.split('/')[-1]}_ngram_examples.jsonl",
+                            )
+                            with open(examples_filename, "w") as exfile:
+                                for train_id in sorted(contaminated_ids):
+                                    ex = contaminated_examples.get(train_id)
+                                    if ex is not None:
+                                        print(json.dumps({
+                                            "train_original_id": train_id,
+                                            "score": ex["score"],
+                                            "query": ex["query"],
+                                            "train_text": ex.get("train_text"),
+                                            "train_doc_id": ex.get("train_doc_id"),
+                                        }), file=exfile)
+                                    else:
+                                        # No example captured (should be rare); still report id and its max score
+                                        print(json.dumps({
+                                            "train_original_id": train_id,
+                                            "score": train_indices_with_scores.get(train_id),
+                                            "query": None,
+                                        }), file=exfile)
+                            print(f"\tWrote ngram contaminated examples to {examples_filename}")
 
             else:
                 model, tokenizer = prepare_embedding_model(args.model)
