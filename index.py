@@ -12,7 +12,7 @@ load_dotenv()
 def create_text_index(es, index_name):
     mappings = {
         "properties": {
-            "text": {"type": "text", "index": True},
+            "text": {"type": "text", "index": True, "analyzer": "tulu_analyzer", "search_analyzer": "tulu_analyzer"},
             "original_id": {"type": "integer"},
         }
     }
