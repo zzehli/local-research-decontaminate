@@ -364,10 +364,10 @@ def main():
             print(f"\tContaminated ids: {contaminated_ids}")
             print(f"\tMean match score: {mean_match_score}")
             mean_match_scores[dataset] = mean_match_score
-            output_filename = os.path.join(args.output_dir, f"{index_name}_{dataset.split('/')[-1]}.jsonl")
-            with open(output_filename, "w") as outfile:
-                for datum in output_data:
-                    print(json.dumps(datum), file=outfile)
+            # output_filename = os.path.join(args.output_dir, f"{index_name}_{dataset.split('/')[-1]}.jsonl")
+            # with open(output_filename, "w") as outfile:
+            #     for datum in output_data:
+            #         print(json.dumps(datum), file=outfile)
         all_index_match_scores.append(mean_match_scores)
         all_index_contaminated_ids.append(contaminated_ids)
 
@@ -379,12 +379,12 @@ def main():
             print(index_name + "\t" + "\t".join([f"{mean_match_scores[ev[0]]:.4f}" for ev in eval_sets]), file=outfile)
             print(f"\tContaminated ids: {contaminated_ids}", file=outfile)
 
-    if args.decontaminate:
+    if args.decontaminate and len(contaminated_ids) > 0:
         # Output training sets without the instances that match any of the test instances.
         for dataset_name, contaminated_ids in zip(dataset_names, all_index_contaminated_ids):
             print(f"Decontaminating {dataset_name}")
             # Assuming dataset has no subsets and we want the train split.
-            train_dataset = load_dataset(dataset_name, split="train")
+            train_dataset = load_dataset(dataset_name, split="train", name="full")
             decontaminated_dataset = []
             num_kept = 0
             num_total = 0
@@ -395,9 +395,10 @@ def main():
                 num_kept += 1
                 decontaminated_dataset.append(datum)
             output_path = os.path.join(args.output_dir, dataset_name.replace("/", "_") + "_decontaminated")
-            # parquet_file_name = os.path.join(output_path, "train.parquet")
+            parquet_file_name = os.path.join(output_path, "train.parquet")
             hf_dataset = Dataset.from_list(decontaminated_dataset)
             hf_dataset.push_to_hub(dataset_name + "_decontaminated")
+            hf_dataset.to_parquet(parquet_file_name)
             print(f"\tWrote parquet files to {output_path}")
             print(f"\tRemoved {num_total - num_kept} train instances.")
             print(f"\tKept {100 * num_kept / num_total:.2f}% of the original data.")

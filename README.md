@@ -56,3 +56,15 @@ Uploading the dataset shards: 100%|███████████████
         Kept 99.44% of the original data.
 ```
 the decontaminated indices are the same as the `target_indices` in our `contamination_script.py`, which means the this search successfully found all contaminated rows.
+
+#
+index 
+```
+uv run index.py --dataset LocalResearchGroup/split-NuminaMath-CoT --messages_field problem --subset full
+uv run index.py --dataset LocalResearchGroup/split-glaive-code-assistant-v3 --messages_field question --subset full
+
+```
+```
+uv run search.py --train_dataset_names LocalResearchGroup/split-NuminaMath-CoT --dataset openai/gsm8k --field question --output_dir data/numinaMath/ --ngram_size 8 --match_threshold 0.5 --decontaminate
+uv run search.py --train_dataset_names LocalResearchGroup/split-glaive-code-assistant-v3 --dataset openai/openai_humaneval --field prompt --output_dir data/glaive/ --ngram_size 8 --match_threshold 0.5 --decontaminate           
+```

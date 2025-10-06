@@ -39,8 +39,8 @@ def score_pair(query: str, train_text: str, ngram_size: int, es: Elasticsearch |
     if es is None or index_name is None:
         raise RuntimeError("es and index_name required")
     def analyze(text: str):
-        #  analyzer="tulu_analyzer"
-        resp = es.indices.analyze(index=index_name, text=text)
+        analyzer="tulu_analyzer"
+        resp = es.indices.analyze(index=index_name, text=text, analyzer=analyzer)
         return [t.get("token") for t in resp.get("tokens", []) if t.get("token")]
 
     train_tokens = analyze(train_text)
@@ -67,8 +67,8 @@ def score_pair(query: str, train_text: str, ngram_size: int, es: Elasticsearch |
 def main():
     index_name = "localresearchgroup_split-numinamath-cot_text"
     es = Elasticsearch('http://localhost:9200')
-    query = "3 loaves of bread cost 3 * $2 = $<<3*2=6>>6.\n2 bagels cost 2 * $1 = $<<2*1=2>>2.\nThe loaves of bread cost $6 - $2 = $<<6-2=4>>4 more than the bagels.\n#### 4"
-    train_text = "To solve this problem, we need to find a function that generates an infinite sequence of integers where each integer can be expressed as the sum of the squares of two positive integers. We are given the first three members of the sequence: 72, 288, and 800. We need to verify if the proposed function \\( f(n) = 2(n+1)^2(n+2)^2 \\) generates these numbers and find the next three members of the sequence.\n\n1. **Verify the given function for the first three members:**\n\n   Let's check if \\( f(n) = 2(n+1)^2(n+2)^2 \\) generates the numbers 72, 288, and 800.\n\n   - For \\( n = 1 \\):\n     \\[\n     f(1) = 2(1+1)^2(1+2)^2 = 2 \\cdot 2^2 \\cdot 3^2 = 2 \\cdot 4 \\cdot 9 = 72\n     \\]\n     This matches the first number in the sequence.\n\n   - For \\( n = 2 \\):\n     \\[\n     f(2) = 2(2+1)^2(2+2)^2 = 2 \\cdot 3^2 \\cdot 4^2 = 2 \\cdot 9 \\cdot 16 = 288\n     \\]\n     This matches the second number in the sequence.\n\n   - For \\( n = 3 \\):\n     \\[\n     f(3) = 2(3+1)^2(3+2)^2 = 2 \\cdot 4^2 \\cdot 5^2 = 2 \\cdot 16 \\cdot 25 = 800\n     \\]\n     This matches the third number in the sequence.\n\n2. **Find the next three members of the sequence:**\n\n   Using the function \\( f(n) = 2(n+1)^2(n+2)^2 \\), we can find the next three members by evaluating the function for \\( n = 4, 5, \\) and \\( 6 \\).\n\n   - For \\( n = 4 \\):\n     \\[\n     f(4) = 2(4+1)^2(4+2)^2 = 2 \\cdot 5^2 \\cdot 6^2 = 2 \\cdot 25 \\cdot 36 = 1800\n     \\]\n\n   - For \\( n = 5 \\):\n     \\[\n     f(5) = 2(5+1)^2(5+2)^2 = 2 \\cdot 6^2 \\cdot 7^2 = 2 \\cdot 36 \\cdot 49 = 3528\n     \\]\n\n   - For \\( n = 6 \\):\n     \\[\n     f(6) = 2(6+1)^2(6+2)^2 = 2 \\cdot 7^2 \\cdot 8^2 = 2 \\cdot 49 \\cdot 64 = 6272\n     \\]\n\n3. **Conclusion:**\n\n   The function \\( f(n) = 2(n+1)^2(n+2)^2 \\) correctly generates the sequence of integers where each integer can be expressed as the sum of the squares of two positive integers. The next three members of the sequence are 1800, 3528, and 6272.\n\nThe final answer is \\( \\boxed{ 1800, 3528, 6272 } \\)"
+    query = "    for i in reversed(range(n)):\n        if n % i == 0:\n            return i\n"
+    train_text = "In Python:\n```python\ndef is_prime(n):\n    if n <= 1:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n\ndef sum_of_differences(n):\n    total_sum = 0\n    for i in range(1, n+1):\n        if is_prime(i) and is_prime(2*n-i):\n            total_sum += abs(2*n - 2*i)\n    return total_sum\n\n# Example usage\nn = 3\nresult = sum_of_differences(n)\nprint(result)  # Output: 6\n```\n\nIn this solution, we define a function `is_prime` to check if a number is prime. Then, we create a function `sum_of_differences` that iterates through all possible partitions of 2n and adds the differences between the larger and smaller parts if the smaller part is prime. Finally, we use an example usage to demonstrate how to use the `sum_of_differences` function."
     ngram_size = 8
     score = score_pair(query, train_text, ngram_size, es, index_name)
 
