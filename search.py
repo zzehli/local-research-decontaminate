@@ -385,20 +385,22 @@ def main():
             print(f"Decontaminating {dataset_name}")
             # Assuming dataset has no subsets and we want the train split.
             train_dataset = load_dataset(dataset_name, split="train", name="full")
-            decontaminated_dataset = []
-            num_kept = 0
-            num_total = 0
-            for i, datum in enumerate(train_dataset):
-                num_total += 1
-                if i in contaminated_ids:
-                    continue
-                num_kept += 1
-                decontaminated_dataset.append(datum)
+            
+            # Convert contaminated_ids to a set for O(1) lookup
+            contaminated_set = set(contaminated_ids)
+            num_total = len(train_dataset)
+            
+            # Create list of indices to keep (all indices NOT in contaminated_set)
+            indices_to_keep = [i for i in range(num_total) if i not in contaminated_set]
+            num_kept = len(indices_to_keep)
+            
+            # Use .select() for efficient index-based filtering
+            decontaminated_dataset = train_dataset.select(indices_to_keep)
+            
             output_path = os.path.join(args.output_dir, dataset_name.replace("/", "_") + "_decontaminated")
             parquet_file_name = os.path.join(output_path, "train.parquet")
-            hf_dataset = Dataset.from_list(decontaminated_dataset)
-            hf_dataset.push_to_hub(dataset_name + "_decontaminated")
-            hf_dataset.to_parquet(parquet_file_name)
+            decontaminated_dataset.push_to_hub(dataset_name + "_decontaminated")
+            decontaminated_dataset.to_parquet(parquet_file_name)
             print(f"\tWrote parquet files to {output_path}")
             print(f"\tRemoved {num_total - num_kept} train instances.")
             print(f"\tKept {100 * num_kept / num_total:.2f}% of the original data.")

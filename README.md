@@ -57,14 +57,38 @@ Uploading the dataset shards: 100%|███████████████
 ```
 the decontaminated indices are the same as the `target_indices` in our `contamination_script.py`, which means the this search successfully found all contaminated rows.
 
-#
-index 
+# index 
 ```
 uv run index.py --dataset LocalResearchGroup/split-NuminaMath-CoT --messages_field problem --subset full
+uv run index.py --dataset LocalResearchGroup/split-NuminaMath-CoT --messages_field problem --subset full --split test
 uv run index.py --dataset LocalResearchGroup/split-glaive-code-assistant-v3 --messages_field question --subset full
+uv run index.py --dataset LocalResearchGroup/split-finemath --messages_field text --subset full --text_batch_size 500 --parallel --streaming
 
 ```
+## Memory-bounded streaming + parallel bulk (fast and low RAM)
+
+For large datasets or when you see malloc failures, use streaming read and memory-bounded parallel bulk. Start conservatively and tune:
+
+```
+uv run index.py \
+  --dataset LocalResearchGroup/split-glaive-code-assistant-v3 \
+  --messages_field question \
+  --subset full \
+  --index_type text \
+  --parallel \
+  --chunk_size 500 \
+  --max_chunk_bytes 10000000 \
+  --queue_size 2
+```
+
+Tips:
+- Increase `--chunk_size` to 1000–3000 and `--thread_count` to 4–6 if CPU/IO allows and RAM is sufficient.
+- If memory is tight, keep `--thread_count` at 1–2 and `--chunk_size` small (300–800).
+- The index is created with `refresh_interval=-1` and `replicas=0` for throughput; adjust after indexing if desired.
+
+# search
 ```
 uv run search.py --train_dataset_names LocalResearchGroup/split-NuminaMath-CoT --dataset openai/gsm8k --field question --output_dir data/numinaMath/ --ngram_size 8 --match_threshold 0.5 --decontaminate
-uv run search.py --train_dataset_names LocalResearchGroup/split-glaive-code-assistant-v3 --dataset openai/openai_humaneval --field prompt --output_dir data/glaive/ --ngram_size 8 --match_threshold 0.5 --decontaminate           
+uv run search.py --train_dataset_names LocalResearchGroup/split-glaive-code-assistant-v3 --dataset openai/openai_humaneval --field prompt --output_dir data/glaive/ --ngram_size 8 --match_threshold 0.5 --decontaminate
+uv run search.py --train_dataset_names LocalResearchGroup/split-finemath --dataset openai/gsm8k --field question --split --output_dir data/split-finemath/ --ngram_size 8 --match_threshold 0.5 --decontaminate           
 ```
