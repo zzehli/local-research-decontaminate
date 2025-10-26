@@ -20,6 +20,9 @@ def create_text_index(es, index_name):
     # coding datasets where we would lose math operators, equations get split, etc. The following custom analyzer uses a regex pattern that splits on
     # fewer characters. This is not perfect either, but is a better choice across evals.
     settings = {
+        "number_of_shards": 0,
+        "number_of_replicas": 0,
+        "refresh_interval": "-1",
         "analysis": {
             "analyzer": {
                 "tulu_analyzer": {
@@ -84,6 +87,32 @@ def read_dataset(dataset_name, split, messages_field, query_filter, query_field,
     return data_to_index
 
 
+def iter_dataset_streaming(dataset_name, split, messages_field, query_filter, query_field, is_messages=False, subset=None):
+    """Yield documents as small dicts, using HF streaming to keep memory low."""
+    if subset is not None:
+        print(f"Reading {dataset_name} subset {subset} split {split}")
+        dataset = load_dataset(dataset_name, name=subset, split=split, streaming=True)
+    else:
+        dataset = load_dataset(dataset_name, split=split, streaming=True)
+
+    query_filter_key, query_filter_value = query_filter.split(":")
+
+    print(f"Reading {messages_field} from {dataset_name}")
+    for i, datum in enumerate(dataset):
+        if is_messages:
+            for message in datum[messages_field]:
+                if message.get(query_filter_key) == query_filter_value:
+                    yield {
+                        "text": message[query_field],
+                        "original_id": i,
+                    }
+        else:
+            messages = datum[messages_field]
+            yield {
+                "text": messages,
+                "original_id": i,
+            }
+
 def index_dataset_text(data_to_index, es, index_name, text_batch_size):
     stats = es.indices.stats(index=index_name)
     index_size = stats["indices"][index_name]["total"]["docs"]["count"]
@@ -109,6 +138,37 @@ def index_dataset_text(data_to_index, es, index_name, text_batch_size):
         print(f"Indexing into {index_name} complete!\n")
     else:
         print("All data is already indexed. Nothing to do.\n")
+
+
+def gen_actions(data_iterable, index_name):
+    for d in data_iterable:
+        yield {
+            "_index": index_name,
+            "_source": {"text": d["text"], "original_id": d["original_id"]},
+        }
+
+
+def index_dataset_text_parallel(data_iterable, es, index_name, chunk_size, thread_count, max_chunk_bytes, queue_size):
+    """Memory-bounded parallel bulk indexing.
+
+    The iterable should yield small dicts; batching and concurrency are capped.
+    """
+    try:
+        for ok, _ in helpers.parallel_bulk(
+            es,
+            gen_actions(data_iterable, index_name),
+            index=index_name,
+            chunk_size=chunk_size,
+            thread_count=thread_count,
+            max_chunk_bytes=max_chunk_bytes,
+            queue_size=queue_size,
+            raise_on_error=False,
+            request_timeout=120,
+        ):
+            # We intentionally ignore per-item status for speed; errors surface via exceptions.
+            pass
+    finally:
+        print(f"Indexing into {index_name} complete!\n")
 
 
 def index_dataset_vectors(data_to_index, es, index_name, model_name, max_batch_tokens):
@@ -138,6 +198,7 @@ def index_dataset_vectors(data_to_index, es, index_name, model_name, max_batch_t
 
         # Indexing
         print("Indexing data (you can stop it by pressing Ctrl+C once):")
+        idx = index_size
         with tqdm(total=len(data_to_index) - idx) as pbar:
             while idx < len(data_to_index):
                 batch_data = []
@@ -195,6 +256,13 @@ def main():
     parser.add_argument("--text_batch_size", type=int, default=1000, help="Batch size used if the `index_type` is `text`.")
     parser.add_argument("--model", type=str, default="nvidia/NV-Embed-v2")
     parser.add_argument("--max_batch_tokens", type=int, default=10000, help="Maximum number of tokens per batch if the `index_type` is `vector`.")
+    # Parallel bulk tuning (text index)
+    parser.add_argument("--streaming", action="store_true", help="Enable streaming read (HF streaming=True) to minimize RAM.")
+    parser.add_argument("--parallel", action="store_true", help="Use memory-bounded parallel bulk for text indexing.")
+    parser.add_argument("--chunk_size", type=int, default=None, help="Docs per bulk chunk (defaults to --text_batch_size if unset).")
+    parser.add_argument("--thread_count", type=int, default=2, help="Number of parallel bulk worker threads.")
+    parser.add_argument("--max_chunk_bytes", type=int, default=10_000_000, help="Max bytes per bulk request (approx).")
+    parser.add_argument("--queue_size", type=int, default=4, help="Max in-flight bulk chunks queued per worker.")
     args = parser.parse_args()
 
     if args.dataset_mixer_config is not None:
@@ -213,21 +281,52 @@ def main():
     )
     for i, dataset_name in enumerate(dataset_names):
         print(f"Processing dataset {i+1} / {len(dataset_names)}: {dataset_name}")
-        data_to_index = read_dataset(
-            dataset_name=dataset_name,
-            split=args.split,
-            messages_field=args.messages_field,
-            query_filter=args.query_filter,
-            query_field=args.query_field,
-            is_messages=args.is_messages,
-            subset=args.subset
-        )
-        print(len(data_to_index))
+        # Choose streaming generator for parallel mode if requested, else load into memory
+        if args.parallel and args.streaming:
+            data_iterable = iter_dataset_streaming(
+                dataset_name=dataset_name,
+                split=args.split,
+                messages_field=args.messages_field,
+                query_filter=args.query_filter,
+                query_field=args.query_field,
+                is_messages=args.is_messages,
+                subset=args.subset,
+            )
+            print("Using streaming dataset iterator for low-memory parallel indexing.")
+            data_to_index = None
+        else:
+            data_to_index = read_dataset(
+                dataset_name=dataset_name,
+                split=args.split,
+                messages_field=args.messages_field,
+                query_filter=args.query_filter,
+                query_field=args.query_field,
+                is_messages=args.is_messages,
+                subset=args.subset
+            )
+            print(len(data_to_index))
         index_name = dataset_name.replace("/", "_").lower() + f"_{args.index_type}"
         if args.index_type == "text":
             if not es.indices.exists(index=index_name):
                 create_text_index(es, index_name=index_name)
-            index_dataset_text(data_to_index=data_to_index, es=es, index_name=index_name, text_batch_size=args.text_batch_size)
+            if args.parallel:
+                index_dataset_text_parallel(
+                    data_iterable=(data_iterable if args.streaming else data_to_index),
+                    es=es,
+                    index_name=index_name,
+                    chunk_size=args.chunk_size or args.text_batch_size,
+                    thread_count=args.thread_count,
+                    max_chunk_bytes=args.max_chunk_bytes,
+                    queue_size=args.queue_size,
+                )
+            else:
+                # Fallback to original single-threaded bulk with in-memory batching
+                index_dataset_text(
+                    data_to_index=data_to_index,
+                    es=es,
+                    index_name=index_name,
+                    text_batch_size=args.text_batch_size,
+                )
         else:
             if not es.indices.exists(index=index_name):
                 create_vector_index(es, index_name=index_name)
