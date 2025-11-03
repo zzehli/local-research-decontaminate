@@ -27,7 +27,6 @@ def create_text_index(es, index_name):
     settings = {
         "number_of_shards": 1,
         "number_of_replicas": 0,
-        "refresh_interval": "-1",
         "analysis": {
             "analyzer": {
                 "tulu_analyzer": {

@@ -64,7 +64,8 @@ uv run index.py --dataset LocalResearchGroup/split-NuminaMath-CoT --messages_fie
 uv run index.py --dataset LocalResearchGroup/split-NuminaMath-CoT --messages_field problem --subset full --split test
 uv run index.py --dataset LocalResearchGroup/split-glaive-code-assistant-v3 --messages_field question --subset full --split train
 uv run index.py --dataset LocalResearchGroup/split-glaive-code-assistant-v3 --messages_field question --subset full --split test
-uv run index.py --dataset LocalResearchGroup/split-finemath --messages_field text --subset full --split train --text_batch_size 500 --parallel --streaming
+uv run index.py --dataset LocalResearchGroup/split-tulu-3-sft-olmo-2-mixture --messages_field prompt --subset full --split train
+uv run index.py --dataset LocalResearchGroup/split-tulu-3-sft-olmo-2-mixture --messages_field prompt --subset full --split test
 
 ```
 ## Memory-bounded streaming + parallel bulk (fast and low RAM)
@@ -95,9 +96,10 @@ uv run search.py --train_dataset_names LocalResearchGroup/split-NuminaMath-CoT -
 uv run search.py --train_dataset_names LocalResearchGroup/split-NuminaMath-CoT --train_split test --dataset openai/gsm8k --field question --output_dir data/numinaMath/ --ngram_size 8 --match_threshold 0.5 --decontaminate
 uv run search.py --train_dataset_names LocalResearchGroup/split-glaive-code-assistant-v3 --train_split train --dataset openai/openai_humaneval --field prompt --output_dir data/glaive/ --ngram_size 8 --match_threshold 0.5 --decontaminate
 uv run search.py --train_dataset_names LocalResearchGroup/split-glaive-code-assistant-v3 --train_split test --dataset openai/openai_humaneval --field prompt --output_dir data/glaive/ --ngram_size 8 --match_threshold 0.5 --decontaminate
-uv run search.py --train_dataset_names LocalResearchGroup/split-finemath --train_split train --dataset openai/gsm8k --field question --output_dir data/split-finemath/ --ngram_size 8 --match_threshold 0.5 --decontaminate           
+uv run search.py --train_dataset_names LocalResearchGroup/split-tulu-3-sft-olmo-2-mixture --train_split train --output_dir data/olmo/ --ngram_size 8 --match_threshold 0.5 --decontaminate
+uv run search.py --train_dataset_names LocalResearchGroup/split-tulu-3-sft-olmo-2-mixture --train_split test --output_dir data/olmo/ --ngram_size 8 --match_threshold 0.5 --decontaminate   
 ```
-
+Note that if you need to run a training set against multiple eval set, the easiest way is to use specify them thru the `eval_sets` var in `search.py`.
 ## Decontamination and Upload
 When using `--decontaminate`, the script will:
 1. Remove contaminated instances from the training dataset
