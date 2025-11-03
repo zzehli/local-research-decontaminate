@@ -12,5 +12,11 @@ from datasets import load_dataset, load_from_disk
 # glaive = load_dataset('csv', data_files="data/sample-test-cases-openai-openai_humaneval.csv", split='train')
 # glaive.push_to_hub("Jae-star/openai-openai_humaneval-subset-sample")
 
-dataset = load_dataset("parquet", data_files="data/numinaMath/LocalResearchGroup_split-NuminaMath-CoT_decontaminated/train.parquet")
-dataset.push_to_hub("LocalResearchGroup/split-NuminaMath-CoT-1k-decontaminated")
+# dataset = load_dataset("parquet", data_files="data/numinaMath/LocalResearchGroup_split-NuminaMath-CoT_decontaminated/train.parquet")
+# dataset.push_to_hub("LocalResearchGroup/split-NuminaMath-CoT-1k-decontaminated")
+dataset = load_dataset("LocalResearchGroup/split-glaive-code-assistant-v3", "full", split="test")
+dataset.push_to_hub("LocalResearchGroup/split-glaive-code-assistant-v3_decontaminated")
+
+
+dataset = load_dataset("LocalResearchGroup/split-NuminaMath-CoT", "full", split="test")
+dataset.push_to_hub("LocalResearchGroup/split-NuminaMath-CoT-decontaminated")

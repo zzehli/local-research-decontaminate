@@ -382,7 +382,7 @@ def main():
             print(index_name + "\t" + "\t".join([f"{mean_match_scores[ev[0]]:.4f}" for ev in eval_sets]), file=outfile)
             print(f"\tContaminated ids: {contaminated_ids}", file=outfile)
 
-    if args.decontaminate and len(contaminated_ids) > 0:
+    if args.decontaminate:
         # Output training sets without the instances that match any of the test instances.
         for dataset_name, contaminated_ids in zip(dataset_names, all_index_contaminated_ids):
             print(f"Decontaminating {dataset_name}")
