@@ -402,7 +402,7 @@ def main():
             
             output_path = os.path.join(args.output_dir, dataset_name.replace("/", "_") + f"_{args.train_split}_decontaminated")
             parquet_file_name = os.path.join(output_path, f"{args.train_split}.parquet")
-            decontaminated_dataset.push_to_hub(dataset_name + "_decontaminated", split="train")
+            decontaminated_dataset.push_to_hub(dataset_name + "-decontaminated", split="train")
             decontaminated_dataset.to_parquet(parquet_file_name)
             print(f"\tWrote parquet files to {output_path}")
             print(f"\tRemoved {num_total - num_kept} train instances.")
