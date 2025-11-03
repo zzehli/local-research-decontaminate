@@ -58,11 +58,13 @@ Uploading the dataset shards: 100%|███████████████
 the decontaminated indices are the same as the `target_indices` in our `contamination_script.py`, which means the this search successfully found all contaminated rows.
 
 # index 
+Index names include the split in the name. Use `--split` to specify which split to index (default: `train`):
 ```
-uv run index.py --dataset LocalResearchGroup/split-NuminaMath-CoT --messages_field problem --subset full
+uv run index.py --dataset LocalResearchGroup/split-NuminaMath-CoT --messages_field problem --subset full --split train
 uv run index.py --dataset LocalResearchGroup/split-NuminaMath-CoT --messages_field problem --subset full --split test
-uv run index.py --dataset LocalResearchGroup/split-glaive-code-assistant-v3 --messages_field question --subset full
-uv run index.py --dataset LocalResearchGroup/split-finemath --messages_field text --subset full --text_batch_size 500 --parallel --streaming
+uv run index.py --dataset LocalResearchGroup/split-glaive-code-assistant-v3 --messages_field question --subset full --split train
+uv run index.py --dataset LocalResearchGroup/split-glaive-code-assistant-v3 --messages_field question --subset full --split test
+uv run index.py --dataset LocalResearchGroup/split-finemath --messages_field text --subset full --split train --text_batch_size 500 --parallel --streaming
 
 ```
 ## Memory-bounded streaming + parallel bulk (fast and low RAM)
@@ -87,8 +89,27 @@ Tips:
 - The index is created with `refresh_interval=-1` and `replicas=0` for throughput; adjust after indexing if desired.
 
 # search
+Use `--train_split` to specify which split of the training dataset to search against (default: `train`). The search will target indices named with the split:
 ```
-uv run search.py --train_dataset_names LocalResearchGroup/split-NuminaMath-CoT --dataset openai/gsm8k --field question --output_dir data/numinaMath/ --ngram_size 8 --match_threshold 0.5 --decontaminate
-uv run search.py --train_dataset_names LocalResearchGroup/split-glaive-code-assistant-v3 --dataset openai/openai_humaneval --field prompt --output_dir data/glaive/ --ngram_size 8 --match_threshold 0.5 --decontaminate
-uv run search.py --train_dataset_names LocalResearchGroup/split-finemath --dataset openai/gsm8k --field question --split --output_dir data/split-finemath/ --ngram_size 8 --match_threshold 0.5 --decontaminate           
+uv run search.py --train_dataset_names LocalResearchGroup/split-NuminaMath-CoT --train_split train --dataset openai/gsm8k --field question --output_dir data/numinaMath/ --ngram_size 8 --match_threshold 0.5 --decontaminate
+uv run search.py --train_dataset_names LocalResearchGroup/split-NuminaMath-CoT --train_split test --dataset openai/gsm8k --field question --output_dir data/numinaMath/ --ngram_size 8 --match_threshold 0.5 --decontaminate
+uv run search.py --train_dataset_names LocalResearchGroup/split-glaive-code-assistant-v3 --train_split train --dataset openai/openai_humaneval --field prompt --output_dir data/glaive/ --ngram_size 8 --match_threshold 0.5 --decontaminate
+uv run search.py --train_dataset_names LocalResearchGroup/split-glaive-code-assistant-v3 --train_split test --dataset openai/openai_humaneval --field prompt --output_dir data/glaive/ --ngram_size 8 --match_threshold 0.5 --decontaminate
+uv run search.py --train_dataset_names LocalResearchGroup/split-finemath --train_split train --dataset openai/gsm8k --field question --output_dir data/split-finemath/ --ngram_size 8 --match_threshold 0.5 --decontaminate           
 ```
+
+## Decontamination and Upload
+When using `--decontaminate`, the script will:
+1. Remove contaminated instances from the training dataset
+2. Save the decontaminated dataset to a local parquet file
+3. Push the decontaminated dataset to HuggingFace Hub with the split preserved:
+   - Train split: `push_to_hub(..., split="train")`
+   - Future validation split: `push_to_hub(..., split="validation")`
+4. Multiple splits can be pushed to the same repository: `{original-dataset-name}_decontaminated`
+
+## Migration note
+If you have existing indices without split in the name (e.g., `localresearchgroup_split-finemath_text`), you'll need to:
+- Reindex with the new naming scheme that includes split, or
+- Use `--train_split` flag matching your old index (though this requires the old naming pattern)
+
+The new default behavior assumes indices are named with splits.

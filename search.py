@@ -16,6 +16,11 @@ load_dotenv()
 
 SPACY_MODEL = spacy.load("en_core_web_lg")
 
+def build_index_name(dataset_name: str, split: str, index_type: str) -> str:
+    """Build index name with dataset, split, and index type."""
+    base = dataset_name.replace("/", "_").lower()
+    return f"{base}_{split}_{index_type}"
+
 def prepare_embedding_model(model_name):
     model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
@@ -223,6 +228,7 @@ def main():
     parser.add_argument("--train_dataset_names", type=str, nargs="+")
     parser.add_argument("--dataset_mixer_config", type=str, help="Path to a train config file in yml format with a `dataset_mixer` field.")
     parser.add_argument("--index_type", type=str, choices=["text", "vector"], default="text")
+    parser.add_argument("--train_split", type=str, default="train", help="Split of the training dataset to search against.")
     parser.add_argument("--search_size", type=int, default=100, help="Number of search results to retrieve from elasticsearch. Increasing this makes decontamination more accurate and search slower.")
     parser.add_argument("--ngram_size", type=int, help="If `index_type` is `text`, will use n-gram matches of this size if this field is set. Default is full match.")
     parser.add_argument("--match_threshold", type=float, help="For ngram and vector matching, transform match scores to 0/1 based on this threshold.")
@@ -272,11 +278,11 @@ def main():
         print(f"Reading from dataset mixer info from train config: {args.dataset_mixer_config}")
         train_config = yaml.safe_load(open(args.dataset_mixer_config))
         dataset_names = list(train_config["dataset_mixer"].keys())
-        index_names = [d.replace("/", "_").lower() + f"_{args.index_type}" for d in dataset_names]
+        index_names = [build_index_name(d, args.train_split, args.index_type) for d in dataset_names]
         print(f"Config has {len(dataset_names)} datasets. Looking for corresponding indexes: {index_names}")
     elif args.train_dataset_names is not None:
         dataset_names = args.train_dataset_names
-        index_names = [d.replace("/", "_").lower() + f"_{args.index_type}" for d in dataset_names]
+        index_names = [build_index_name(d, args.train_split, args.index_type) for d in dataset_names]
     else:
         raise RuntimeError("Specify train_dataset_names or provide a train config file with dataset mixer info.")
 
@@ -330,7 +336,7 @@ def main():
                         if contaminated_examples:
                             examples_filename = os.path.join(
                                 args.output_dir,
-                                f"{index_name}_{dataset.split('/')[-1]}_ngram_examples.jsonl",
+                                f"{index_name}_{args.train_split}_{dataset.split('/')[-1]}_ngram_examples.jsonl",
                             )
                             with open(examples_filename, "w") as exfile:
                                 for train_id in sorted(contaminated_ids):
@@ -364,14 +370,11 @@ def main():
             print(f"\tContaminated ids: {contaminated_ids}")
             print(f"\tMean match score: {mean_match_score}")
             mean_match_scores[dataset] = mean_match_score
-            # output_filename = os.path.join(args.output_dir, f"{index_name}_{dataset.split('/')[-1]}.jsonl")
-            # with open(output_filename, "w") as outfile:
-            #     for datum in output_data:
-            #         print(json.dumps(datum), file=outfile)
+
         all_index_match_scores.append(mean_match_scores)
         all_index_contaminated_ids.append(contaminated_ids)
 
-    output_file = os.path.join(args.output_dir, "contamination_results.tsv")
+    output_file = os.path.join(args.output_dir, f"contamination_results_{args.train_split}.tsv")
     print(f"TSV file with all results: {output_file}")
     with open(output_file, "w") as outfile:
         print("\t" + "\t".join(ev[0] for ev in eval_sets), file=outfile)
@@ -397,9 +400,9 @@ def main():
             # Use .select() for efficient index-based filtering
             decontaminated_dataset = train_dataset.select(indices_to_keep)
             
-            output_path = os.path.join(args.output_dir, dataset_name.replace("/", "_") + "_decontaminated")
-            parquet_file_name = os.path.join(output_path, "train.parquet")
-            decontaminated_dataset.push_to_hub(dataset_name + "_decontaminated")
+            output_path = os.path.join(args.output_dir, dataset_name.replace("/", "_") + f"_{args.train_split}_decontaminated")
+            parquet_file_name = os.path.join(output_path, f"{args.train_split}.parquet")
+            decontaminated_dataset.push_to_hub(dataset_name + "_decontaminated", split="train")
             decontaminated_dataset.to_parquet(parquet_file_name)
             print(f"\tWrote parquet files to {output_path}")
             print(f"\tRemoved {num_total - num_kept} train instances.")

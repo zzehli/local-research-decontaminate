@@ -9,6 +9,11 @@ from tqdm import tqdm
 
 load_dotenv()
 
+def build_index_name(dataset_name: str, split: str, index_type: str) -> str:
+    """Build index name with dataset, split, and index type."""
+    base = dataset_name.replace("/", "_").lower()
+    return f"{base}_{split}_{index_type}"
+
 def create_text_index(es, index_name):
     mappings = {
         "properties": {
@@ -20,7 +25,7 @@ def create_text_index(es, index_name):
     # coding datasets where we would lose math operators, equations get split, etc. The following custom analyzer uses a regex pattern that splits on
     # fewer characters. This is not perfect either, but is a better choice across evals.
     settings = {
-        "number_of_shards": 0,
+        "number_of_shards": 1,
         "number_of_replicas": 0,
         "refresh_interval": "-1",
         "analysis": {
@@ -305,7 +310,7 @@ def main():
                 subset=args.subset
             )
             print(len(data_to_index))
-        index_name = dataset_name.replace("/", "_").lower() + f"_{args.index_type}"
+        index_name = build_index_name(dataset_name, args.split, args.index_type)
         if args.index_type == "text":
             if not es.indices.exists(index=index_name):
                 create_text_index(es, index_name=index_name)
