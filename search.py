@@ -241,27 +241,27 @@ def main():
     eval_sets = [
         # (dataset, subset, split, fields, limit)
         # Dev evals
-        ("cais/mmlu", "all", "test", ["question"], None),
+        # ("cais/mmlu", "all", "test", ["question"], None),
         ("openai/openai_humaneval", None, "test", ["prompt"], None),
         ("openai/gsm8k", "main", "test", ["question"], None),
-        ("ucinlp/drop", None, "validation", ["passage", "question"], None),
-        ("EleutherAI/hendrycks_math", None, "test", ["problem"], None),
-        ("google/IFEval", None, "train", ["prompt"], None),
-        ("akariasai/PopQA", None, "test", ["subj", "prop", "obj"], None),
-        ("tatsu-lab/alpaca_eval", None, "eval", ["instruction"], None),
-        ("lukaemon/bbh", None, "test", ["input"], None),
-        ("truthfulqa/truthful_qa", "generation", "validation", ["question"], None),
-        ("allenai/wildguardmix", "wildguardtest", "test", ["prompt"], None),
-        ("allenai/wildjailbreak", "eval", "train", ["adversarial"], None),
-        ("allenai/tulu-3-trustllm-jailbreaktrigger-eval", None, "test", ["prompt"], None),
-        ("allenai/tulu-3-harmbench-eval", None, "test", ["Behavior"], None),
-        ("allenai/tulu-3-do-anything-now-eval", None, "test", ["prompt"], None),
+        # ("ucinlp/drop", None, "validation", ["passage", "question"], None),
+        # ("EleutherAI/hendrycks_math", None, "test", ["problem"], None),
+        # ("google/IFEval", None, "train", ["prompt"], None),
+        # ("akariasai/PopQA", None, "test", ["subj", "prop", "obj"], None),
+        # ("tatsu-lab/alpaca_eval", None, "eval", ["instruction"], None),
+        # ("lukaemon/bbh", None, "test", ["input"], None),
+        # ("truthfulqa/truthful_qa", "generation", "validation", ["question"], None),
+        # ("allenai/wildguardmix", "wildguardtest", "test", ["prompt"], None),
+        # ("allenai/wildjailbreak", "eval", "train", ["adversarial"], None),
+        # ("allenai/tulu-3-trustllm-jailbreaktrigger-eval", None, "test", ["prompt"], None),
+        # ("allenai/tulu-3-harmbench-eval", None, "test", ["Behavior"], None),
+        # ("allenai/tulu-3-do-anything-now-eval", None, "test", ["prompt"], None),
         # Test evals
-        ("TIGER-Lab/MMLU-Pro", None, "test", ["question"], None),
-        ("Idavidrein/gpqa", "gpqa_extended", "train", ["Question"], None),
-        ("lighteval/agi_eval_en", None, "train", ["passage", "question"], None),
-        ("bigcode/bigcodebench", None, "v0.1.2", ["instruct_prompt"], None),
-        ("deepmind/math_dataset", None, "test", ["question"], 50),
+        # ("TIGER-Lab/MMLU-Pro", None, "test", ["question"], None),
+        # ("Idavidrein/gpqa", "gpqa_extended", "train", ["Question"], None),
+        # ("lighteval/agi_eval_en", None, "train", ["passage", "question"], None),
+        # ("bigcode/bigcodebench", None, "v0.1.2", ["instruct_prompt"], None),
+        # ("deepmind/math_dataset", None, "test", ["question"], 50),
     ] if args.dataset is None else [
         (args.dataset, args.subset, args.split, args.field, args.limit)
     ]
@@ -387,7 +387,7 @@ def main():
         for dataset_name, contaminated_ids in zip(dataset_names, all_index_contaminated_ids):
             print(f"Decontaminating {dataset_name}")
             # Assuming dataset has no subsets and we want the train split.
-            train_dataset = load_dataset(dataset_name, split="train", name="full")
+            train_dataset = load_dataset(dataset_name, split=args.train_split, name="full")
             
             # Convert contaminated_ids to a set for O(1) lookup
             contaminated_set = set(contaminated_ids)
@@ -402,7 +402,7 @@ def main():
             
             output_path = os.path.join(args.output_dir, dataset_name.replace("/", "_") + f"_{args.train_split}_decontaminated")
             parquet_file_name = os.path.join(output_path, f"{args.train_split}.parquet")
-            decontaminated_dataset.push_to_hub(dataset_name + "-decontaminated", split="train")
+            decontaminated_dataset.push_to_hub(dataset_name + "-decontaminated", split=args.train_split)
             decontaminated_dataset.to_parquet(parquet_file_name)
             print(f"\tWrote parquet files to {output_path}")
             print(f"\tRemoved {num_total - num_kept} train instances.")
